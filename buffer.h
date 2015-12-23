@@ -1,9 +1,10 @@
 size_t getDeviceBlockSize()
 {
-	const char diskblkfile = "~/../../sys/block/sdX/queue/physical_block_size"
-	ifstream fptr(diskblkfile);
+	using namespace std;
+	const char diskblkfile[] = "~/../../sys/block/sdX/queue/physical_block_size";
+	FILE* fptr = fopen(diskblkfile,"r");
 	size_t blksize;
-	ifstream >> blksize;
+	fscanf(fptr,"%lu",&blksize);
 	return blksize;
 }
 
