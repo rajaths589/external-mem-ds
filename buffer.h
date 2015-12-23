@@ -1,3 +1,11 @@
+size_t getDeviceBlockSize
+{
+	const char diskblkfile = "~/../../sys/block/sdX/queue/physical_block_size"
+	ifstream fptr(diskblkfile);
+	size_t blksize;
+	ifstream >> blksize;
+	return blksize;
+}
 
 template <typename BlkSize>
 class BufferedFile {
