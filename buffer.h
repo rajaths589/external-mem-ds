@@ -1,4 +1,4 @@
-size_t getDeviceBlockSize
+size_t getDeviceBlockSize()
 {
 	const char diskblkfile = "~/../../sys/block/sdX/queue/physical_block_size"
 	ifstream fptr(diskblkfile);
