@@ -2,26 +2,24 @@
 #include <string.h>
 #include <stddef.h>
 #include <stdlib.h>
-//#include <cstring>
 #include <string>
 
 using namespace std;
 
 template<typename T>
-class Vector
-{
+class Vector {
+
 private:
 	int len;
-	int blksize;
-	int elemsize;
-	int elemperblk;
-	string *nameondisk;
-	BufferedFile *externfile;
+	int blk_size;
+	int elem_size;
+	int elem_per_blk;
+	string *name_on_disk;
+	BufferedFile *extern_file;
 	void* header;
 	bool isFull();
-	
 public:
-	Vector(string _nameondisk);
+	Vector(string _name_on_disk);
 	~Vector();
 	void pushBack(T _elem);
 	T* pop();
@@ -31,41 +29,41 @@ public:
 };
 
 template<typename T>
-Vector<T>::Vector(string _nameondisk, string _devicename)
+Vector<T>::Vector(string _name_on_disk, string _devicename)
 {
-	nameondisk = new string(_nameondisk);
-	blksize = getDeviceBlockSize(_devicename.c_str());
-	elemsize = sizeof(T);
-	elemperblk = blksize/elemsize;
+	name_on_disk = new string(_name_on_disk);
+	blk_size = getDeviceBlockSize(_devicename.c_str());
+	elem_size = sizeof(T);
+	elem_per_blk = blk_size / elem_size;
 
-	externfile = new BufferedFile(blksize,this->nameondisk->c_str());
-	header = (void*)malloc(blksize);
+	extern_file = new BufferedFile(blk_size, this->name_on_disk->c_str());
+	header = (void*)malloc(blk_size);
 	try
 	{
-		externfile->readHeader(header);
-		int currpos = 0;
-		memcpy(&len,(void*)(((uint8_t*)header)+currpos),sizeof(len));
-		currpos += sizeof(len);
+		extern_file->readHeader(header);
+		int curr_pos = 0;
+		memcpy(&len, (void*)(((uint8_t*)header) + curr_pos), sizeof(len));
+		curr_pos += sizeof(len);
 
 		//continue header info extraction.
 
-	}catch(exception e)	//add blank file exception
+	} catch(exception e)	//add a 'Blank File' exception
 	{
 		len = 0;
-		int currpos = 0;
-		memcpy((void*)(((uint8_t*)header)+currpos),&len,sizeof(len));
-		currpos += sizeof(len);
+		int curr_pos = 0;
+		memcpy((void*)(((uint8_t*)header) + curr_pos), &len, sizeof(len));
+		curr_pos += sizeof(len);
 
 		//continue header info writing
 
-		externfile->writeHeader(header);
+		extern_file->writeHeader(header);
 	}
 }
 
 template<typename T>
 bool Vector<T>::isFull()
 {
-	return len%elemperblk?false:true;
+	return len % elem_per_blk ? false : true;
 }
 
 template<typename T>
@@ -73,47 +71,56 @@ void Vector<T>::pushBack(T _elem)
 {
 	if(isFull())
 	{
-		int elemblknum = externfile->allotBlock();
-		void* buff = malloc(blksize);
-		memcpy(buff,(void*)&_elem,sizeof(_elem));
-		externfile->writeBlock(elemblknum,buff);
+		int elem_blk_num = extern_file->allotBlock();
+		void* buff = malloc(blk_size);
+		memcpy(buff, (void*)&_elem, sizeof(_elem));
+		extern_file->writeBlock(elem_blk_num, buff);
 	}
 	else
 	{
-		int elemblknum = len/elemperblk;
-		int blkoffset = len%elemblknum;
-		void* buff = malloc(blksize);
-		externfile->readBlock(elemblknum,buff);
-		memcpy((void*)(((uint8_t*)buff)+blkoffset),(void*)&_elem,sizeof(_elem));
-		externfile->writeBlock(elemblknum,buff);
+		int elem_blk_num = len / elem_per_blk;
+		int blk_offset = len % elem_blk_num;
+		void* buff = malloc(blk_size);
+		extern_file->readBlock(elem_blk_num, buff);
+		memcpy((void*)(((uint8_t*)buff) + blk_offset), (void*)&_elem, sizeof(_elem));
+		extern_file->writeBlock(elem_blk_num, buff);
 	}
 }
 
 template<typename T>
 T* Vector<T>::pop()
 {
-	if(len==0) return NULL;
-	void* buff = malloc(blksize);
-	void* newbuff = malloc(blksize);
-	externfile->readBlock(1,buff);
-	memcpy(newbuff,buff,(blksize - elemsize));
-	externfile->writeBlock(1,newbuff);
+	if (len == 0) return NULL;
+	void* buff = malloc(blk_size);
+	void* new_buff = malloc(blk_size);
+
+	// read the whole block
+	extern_file->readBlock(1, buff);
+
+	// keep everything else except the last elem
+	memcpy(new_buff, buff, (blk_size - elem_size));
+
+	// write back the rest
+	extern_file->writeBlock(1, new_buff);
+
+	// ?? - to return the last element which was popped out
 	T* temp = (T*) malloc(sizeof(T));
-	memcpy(temp,buff,sizeof(T));
+	memcpy(temp, buff, sizeof(T));
+
 	return temp;
 }
 
 template<typename T>
 T* Vector<T>::getElem(int index)
 {
-	int elemblknum = index/elemperblk;
-	int blkoffset = (index%elemperblk)*elemsize;
+	int elem_blk_num = index / elem_per_blk;
+	int blk_offset = (index % elem_per_blk) * elem_size;
 
-	void *buff = (void*)malloc(blksize);
-	externfile->readBlock(elemblknum,buff);
+	void *buff = (void*)malloc(blk_size);
+	extern_file->readBlock(elem_blk_num, buff);
 
 	T* temp = (T*) malloc(sizeof(T));
-	memcpy(temp,(void*)(((uint8_t*)buff)+blkoffset),sizeof(T));
+	memcpy(temp, (void*)(((uint8_t*)buff) + blk_offset), sizeof(T));
 	return temp;
 }
 
